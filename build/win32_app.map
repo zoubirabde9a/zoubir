@@ -1,6 +1,6 @@
  win32_app
 
- Timestamp is 6005b901 (Mon Jan 18 17:36:17 2021)
+ Timestamp is 6005cfa6 (Mon Jan 18 19:12:54 2021)
 
  Preferred load address is 0000000140000000
 
@@ -31,11 +31,11 @@
  0002:00010558 00000077H .rdata$zETW1            DATA
  0002:000105cf 0000002cH .rdata$zETW2            DATA
  0002:000105fb 00000001H .rdata$zETW9            DATA
- 0002:000105fc 000003a0H .rdata$zzzdbg           DATA
- 0002:000109a0 00000008H .rtc$IAA                DATA
- 0002:000109a8 00000008H .rtc$IZZ                DATA
- 0002:000109b0 00000008H .rtc$TAA                DATA
- 0002:000109b8 00000008H .rtc$TZZ                DATA
+ 0002:000105fc 00000398H .rdata$zzzdbg           DATA
+ 0002:00010998 00000008H .rtc$IAA                DATA
+ 0002:000109a0 00000008H .rtc$IZZ                DATA
+ 0002:000109a8 00000008H .rtc$TAA                DATA
+ 0002:000109b0 00000008H .rtc$TZZ                DATA
  0002:000109c0 000010bcH .xdata                  DATA
  0002:00011a80 00000084H .xdata$x                DATA
  0002:00011b04 00000000H .edata                  DATA
@@ -2148,10 +2148,10 @@
  0002:00010520       ??_R1A@?0A@EA@bad_exception@std@@8 0000000140049520     libvcruntimed:frame.obj
  0002:00010548       ?_TraceLoggingMetadata@?1??_TlgWrite@__vcrt_trace_logging_provider@@YAJPEBU_TlgProvider_t@2@PEFBXPEBU_GUID@@2IPEAU_EVENT_DATA_DESCRIPTOR@@@Z@4U_TraceLoggingMetadata_t@2@B 0000000140049548     libvcruntimed:telemetry.obj
  0002:000105fb       ?_TraceLoggingMetadataEnd@?1??_TlgWrite@__vcrt_trace_logging_provider@@YAJPEBU_TlgProvider_t@2@PEFBXPEBU_GUID@@2IPEAU_EVENT_DATA_DESCRIPTOR@@@Z@4EB 00000001400495fb     libvcruntimed:telemetry.obj
- 0002:000109a0       __rtc_iaa                  00000001400499a0     LIBCMTD:_initsect_.obj
- 0002:000109a8       __rtc_izz                  00000001400499a8     LIBCMTD:_initsect_.obj
- 0002:000109b0       __rtc_taa                  00000001400499b0     LIBCMTD:_initsect_.obj
- 0002:000109b8       __rtc_tzz                  00000001400499b8     LIBCMTD:_initsect_.obj
+ 0002:00010998       __rtc_iaa                  0000000140049998     LIBCMTD:_initsect_.obj
+ 0002:000109a0       __rtc_izz                  00000001400499a0     LIBCMTD:_initsect_.obj
+ 0002:000109a8       __rtc_taa                  00000001400499a8     LIBCMTD:_initsect_.obj
+ 0002:000109b0       __rtc_tzz                  00000001400499b0     LIBCMTD:_initsect_.obj
  0002:00011a80       _TI2?AVbad_exception@std@@ 000000014004aa80     libvcruntimed:frame.obj
  0002:00011aa0       _CTA2?AVbad_exception@std@@ 000000014004aaa0     libvcruntimed:frame.obj
  0002:00011ab8       _CT??_R0?AVbad_exception@std@@@8??0bad_exception@std@@QEAA@AEBV01@@Z24 000000014004aab8     libvcruntimed:frame.obj

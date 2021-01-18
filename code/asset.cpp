@@ -182,8 +182,8 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
     };
 }
 
-internal bool32
-LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
+internal void
+PrefetchAsset(assets *Assets, app_state *AppState, asset_id ID)
 {
     Assert(ID.Type);
     asset *Asset = GetAsset(Assets, ID);
@@ -203,10 +203,31 @@ LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
     
         Platform.AddWorkEntry(AppState->WorkQueue,
                               LoadAssetWork, Work);
-        Result = true;
-    }
-    
-    return Result;
+    }    
+}
+
+internal void
+LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
+{
+    zas_asset_info *Info = GetAssetInfo(Assets, ID);
+        
+    switch(Info->Family)
+    {
+        case AssetFamily_Texture:
+        {
+            PrefetchAsset(Assets, AppState, ID);
+            break;
+        }
+        case AssetFamily_Audio:
+        {
+            LoadAudio(Assets, ID, Info);
+            break;
+        }
+        default:
+        {
+            InvalidCodePath;
+        }
+    };
 }
 
 inline loaded_texture *
@@ -232,16 +253,17 @@ GetAudio(assets *Assets, app_state *AppState, asset_id ID)
 {
     loaded_audio *Result = 0;
     asset *Asset = GetAsset(Assets, ID);
+
+    if (Asset->State == AssetState_Unloaded)
+    {
+        LoadAsset(Assets, AppState, ID);
+    }
     
     if (Asset->State == AssetState_Loaded)
     {
         Result = &Asset->Audio;
     }
-    else if (Asset->State == AssetState_Unloaded)
-    {
-        LoadAsset(Assets, AppState, ID);
-    }
-
+    
     return Result;
 }
 
@@ -352,7 +374,7 @@ InitializeAssets(assets *Assets, app_state *AppState,
         AssetTypeIndex < AssetType_Count;
         AssetTypeIndex++)
     {
-        LoadAsset(Assets, AppState, {(asset_type_id)AssetTypeIndex});
+        PrefetchAsset(Assets, AppState, {(asset_type_id)AssetTypeIndex});
     }
     #endif
 
