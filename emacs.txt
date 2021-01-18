@@ -1,0 +1,29 @@
+ALT-B buffer
+ALT-SHIFT-B in the second WINDOW
+ALT-F load
+ALT-SHIFT-F load in the second window
+ALT-S save the file
+ALT-M looks for and executes a build.bat
+ALT-N go to the next error after a compile
+ALT-SHIFT-N go to the previous error after a compile 
+ALT-w switch window
+alt-C toggle c and h file
+alt-shift-c toggle c and h other window
+alt-k kills the buffer
+CTR-space mark
+CTR-TAB reindent block
+CTR-Q copies the block
+CTR-W cut the block
+CTR-F paste the block
+ALT-SHIFT; pops back to the previous mark
+ALT-U undo
+CTR-S start search
+CTR-S next
+CTR-R previous
+ALT-O querry replace
+ALT-L replace inside block
+ALT-[ start recording keybord macro
+ALT-] end record keybord macro
+ALT-' replay keybord macro 
+ALT-. reflow comment
+ALT-R revert buffer 

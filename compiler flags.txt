@@ -1,0 +1,15 @@
+-WX convert warnings to errors
+-wd[warning] stop showing specific warning
+-ZI debug information
+-Z7 older version of pdb for parallel builds
+-Oi intrinsic function calls
+-Od disable all optimisations
+-GR- runtime type information
+-EHsc- -EHa- turn off exeption handling
+-nologo remove extra version information
+LIKER -subsystem:windows,5.02 | 5.01 windows xp 86 | 5.02 windows xp 64
+-MD dynamic msvc runtime
+-MT static msvc runtime
+-Gm- turns off incremental build stuff
+-Fm tell the linker a location to stick a map file
+LINKER -opt:ref try hard todiscard functions that the executable doesnt need
