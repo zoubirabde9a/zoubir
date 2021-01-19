@@ -44,6 +44,19 @@ AtomicCompareExchangeU32(u32 volatile *Value,
     return Result;
 }
 
+#elif COMPILER_EMSCRIPTEN
+#define CompletePreviousWritesBeforeFutureWrites asm volatile("" ::: "memory")
+
+inline u32
+AtomicCompareExchangeU32(u32 volatile *Value,
+                                u32 ExpectedValue,
+                                u32 NewValue)
+{
+    u32 Result =
+        __sync_val_compare_and_swap((long volatile *)Value,
+                                   ExpectedValue, NewValue);
+    return Result;
+}
 #endif
 
 inline float

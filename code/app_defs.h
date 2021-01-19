@@ -36,7 +36,7 @@ typedef uint64_t u64;
 #define global_variable static
 
 #if APP_DEV
-#define Assert(expression) if (!(expression)) {*(int*)0 = 0;}
+#define Assert(expression) if (!(expression)) {*(volatile int *)0 = 0;}
 #define InvalidCodePath Assert(!"InvalidCodePath")
 #else
 #define Assert(expression)

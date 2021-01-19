@@ -134,7 +134,7 @@ UIBegin(render_context *RenderContext,
         UIContext->AllocatedContainersCount = NumberOfContainers;
     }
 
-    UIContext->ContainerOffset = {};
+    UIContext->ContainerOffset = V2(0.f);
     UIContext->HighlightedElement = 0;
 }
 
@@ -431,10 +431,7 @@ DoEditBox(ui_state *EditBox, app_state *AppState,
     char *Text = EditBox->Text;
     char *TextInput = Input->TextInput;
     u32 TextInputCount = Input->TextInputCount;    
-    EditBox->Padding =
-    {
-        4.f, 4.f, 4.f, 4.f
-    };
+    EditBox->Padding = V4(4.f, 4.f, 4.f, 4.f);
 
     v2 ContainerOffset = UIContext->ContainerOffset;
     ui_container *Container = UIContextGetCurrentContainer(UIContext);

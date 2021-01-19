@@ -30,10 +30,10 @@
 #define COMPILER_MSVC 1
 #elif __GNUC__
 #undef COMPILER_GCC
-#define COMPILER_GCC 1
+#define COMPILER_GCC 0
 #else
 #undef COMPILER_LLVM
-#define COMPILER_LLVM 1
+#define COMPILER_LLVM 0
 #endif
 #endif
 
@@ -43,6 +43,8 @@
 #include <x86intrin.h>
 #elif COMPILER_GCC
 #include <x86intrin.h>
+#elif COMPILER_EMSCRIPTEN
+#include <emmintrin.h>
 #else
 #error SEE: NO optimisations are not available for this compiller
 #endif
@@ -344,11 +346,6 @@ struct app_memory
     u32 PermanentStorageSize;
     void *PermanentStorage; // NOTE(zoubir): Required to be set to 0 at startup
     u32 PermanentStorageOffset;
-#if 0
-    app_memory_block_header **PermanentStorageFreeBlocks;
-    u32 PermanentStorageFreeBlocksCount;
-    app_memory_block_header *PermanentStorageNextFreeBlockHeader;
-#endif
     
     size_t TransientStorageSize;
     size_t TransientStorageOffset;

@@ -252,10 +252,10 @@ MakeGroundedTreeCollisionVolume(memory_arena *Arena)
     Group->VolumesCount = 2;
     Group->Volumes =
         AllocateArray(Arena, Group->VolumesCount, entity_collision_volume);
-    Group->Volumes[0].HalfDims = {18, 10, 63};
+    Group->Volumes[0].HalfDims = V3(18.f, 10.f, 63.f);
     Group->Volumes[0].Offset.Z += LowestHalfZ;
     
-    Group->Volumes[1].HalfDims = {43, 10, 28};
+    Group->Volumes[1].HalfDims = V3(43.f, 10.f, 28.f);
     Group->Volumes[1].Offset.Z = 15;
     Group->Volumes[1].Offset.Z += LowestHalfZ;
     //TODO(zoubir): this is not the total volume

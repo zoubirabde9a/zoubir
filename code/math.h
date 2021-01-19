@@ -32,6 +32,15 @@ V2(float X, float Y)
     v2 Result = {X, Y};
     return Result;
 }
+
+inline v2
+V2(float Value)
+{
+    v2 Result = {Value, Value};
+    return Result;
+}
+
+
 inline v2
 V2(u32 X, u32 Y)
 {
@@ -93,6 +102,13 @@ struct v4
         };
     };
 };
+
+inline v4
+V4(float X, float Y, float Z, float W)
+{
+    v4 Result = {X, Y, Z, W};
+    return Result;
+}
 
 inline v2
 operator*(float A, v2 B)

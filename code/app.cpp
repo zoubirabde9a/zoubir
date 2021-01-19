@@ -4,10 +4,6 @@
    $Revision: $
    $Creator: zoubir $
    ======================================================================== */
-#if APP_DEV
-#include "windows.h"
-#endif
-
 #include "app.h"
 #include "stdio.h"
 #include "string.h"
@@ -335,7 +331,7 @@ AddPlayer(app_state *AppState,
                   AppState->PlayerCollision);
     
     Player->Position = Position;
-    Player->Dimensions = {48, 48};
+    Player->Dimensions = V2(48.F, 48.f);
     Player->AnimationState = {};
     Player->Texture = {AssetType_Zoubir};
     Player->ShadowTexture = {AssetType_Shadow};
@@ -2046,7 +2042,6 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     TextureProgram->ProjectionMatrix = &ProjectionMatrix;
     LineProgram->ProjectionMatrix = &ProjectionMatrix;
     
-    ArrayCount(Input->controllers[0].buttons) * sizeof(app_button_state);
     Assert(&Input->controllers[0].terminator - &Input->controllers[0].buttons[0] ==
            ArrayCount(Input->controllers[0].buttons));
     Assert(Memory->PermanentStorageSize > sizeof(app_state));
@@ -2322,7 +2317,12 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
                            Assets,
                            ThisEntity, CameraOffset);
                 break;
-            }                    
+            }
+            case EntityType_Count:
+            case EntityType_Invalid:
+            {
+                break;
+            }
         }
         }
         }
@@ -2514,6 +2514,7 @@ extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)
     EndTemporaryMemory(TempMem);
 }
 
+#if 0
 int WINAPI WinMain(      
     HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
@@ -2522,3 +2523,4 @@ int WINAPI WinMain(
 {  
   return 0;
 }
+#endif
