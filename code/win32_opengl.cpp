@@ -5,6 +5,7 @@
    $Creator: zoubir $
    ======================================================================== */
 
+#include "windows.h"
 #include "opengl.h"
 
 internal void *
@@ -19,8 +20,8 @@ Win32GetGLFuncAddress(HMODULE OpenglDLL, char *name)
      (Result == (void*)0x3) ||
       (Result == (void*)-1)))
   {
-      Assert(0);
       Result = (void *)GetProcAddress(OpenglDLL, name);
+      Assert(Result);
   }
 
   return Result;
@@ -33,6 +34,17 @@ Win32LoadOpenglFunctions(open_gl *OpenGL)
 
 #define GetOpenglFunction(Name) OpenGL->Name = (type_##Name *)Win32GetGLFuncAddress(OpenglDLL, #Name)
     
+#if 1
+    GetOpenglFunction(glGenTextures);
+    GetOpenglFunction(glBindTexture);
+    GetOpenglFunction(glTexImage2D);
+    GetOpenglFunction(glTexParameteri);
+    GetOpenglFunction(glEnable);
+    GetOpenglFunction(glBlendFunc);
+    GetOpenglFunction(glClear);
+    GetOpenglFunction(glClearColor);
+    GetOpenglFunction(glGetString);
+#endif
     
     GetOpenglFunction(glDrawArrays);
     GetOpenglFunction(glCreateProgram);

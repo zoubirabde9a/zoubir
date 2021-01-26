@@ -353,10 +353,12 @@ main(int ArgCount, char **Args)
     BeginAssetType(Assets, AssetType_FireCast, 1);
     AddAudioAsset(Assets, "fire_cast.wav");
     EndAssetType(Assets);
+#if 0
     BeginAssetType(Assets, AssetType_BattleTheme, 1);
     AddAudioAsset(Assets, "Battle_Theme2_Hard.wav");
     EndAssetType(Assets);
-   
+#endif
+    
 #endif
     
     fopen_s(&Out, "asset_1.zas", "wb+");

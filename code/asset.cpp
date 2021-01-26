@@ -52,6 +52,45 @@ AddOpenglTextureToQueue(opengl_texture_queue *Queue,
        
 }
 
+internal loaded_texture
+LoadOpenglTexture(open_gl *OpenGL, u32 Width, u32 Height,
+                  GLenum ImageFormat, void *TextureMemory, u32 Flags)
+{
+    
+    loaded_texture Texture;
+    Texture.Width = Width;
+    Texture.Height = Height;
+    
+    OpenGL->glGenTextures(1, &Texture.ID);
+    OpenGL->glBindTexture(GL_TEXTURE_2D, Texture.ID);
+
+    OpenGL->glTexImage2D(GL_TEXTURE_2D, 0, ImageFormat,
+                 Width, Height, 0,
+                 ImageFormat, GL_UNSIGNED_BYTE, TextureMemory);
+
+    //IMPORTANT memory leak with texture memory
+    
+//    DEBUGPlatformFreeFileMemory(Entry->MemoryToFree);
+    //Set some texture parameters
+    OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+    if ((Flags & TEXTURE_SOFT_FILTER) == TEXTURE_SOFT_FILTER) {
+        OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    }
+    else {
+        OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    }
+    
+    OpenGL->glGenerateMipmap(GL_TEXTURE_2D);
+    OpenGL->glBindTexture(GL_TEXTURE_2D, 0);
+
+    return Texture;
+}
+
+
 inline zas_asset_info *
 GetAssetInfo(assets *Assets, asset_id ID)
 {    
@@ -67,19 +106,32 @@ GetAssetInfo(assets *Assets, asset_id ID)
 
 inline asset *
 GetAsset(assets *Assets, asset_id ID)
-{    
+{
+    asset *Asset = 0;
+    
     Assert(ID.Type);
-    Assert(ID.Type < AssetType_Count);
+    Assert(ID.Type < AssetType_Count);    
     zas_asset_type_slot *AssetType = &Assets->AssetTypes[ID.Type];
     Assert(ID.Index < AssetType->OnePastLastIndex - AssetType->FirstIndex);
     u32 Index = AssetType->FirstIndex + ID.Index;
-    asset *Asset = &Assets->Assets[Index];
+    Asset = &Assets->Assets[Index];
     
     return Asset;
 }
 
+inline void
+UploadTexture(assets *Assets, loaded_texture Texture,
+              asset_id ID)
+{
+    asset *Asset = GetAsset(Assets, ID);
+    Asset->Texture = Texture;
+    
+    CompletePreviousWritesBeforeFutureWrites;
+    Asset->State = AssetState_Loaded;
+}
+
 internal void
-LoadTexture(opengl_texture_queue *Queue,
+LoadTextureDeferred(opengl_texture_queue *Queue,
             assets *Assets,
             asset_id ID, zas_asset_info *AssetInfo)
 {
@@ -94,13 +146,42 @@ LoadTexture(opengl_texture_queue *Queue,
     Platform.ReadDataFromFile(Assets->FileHandle,
                               AssetInfo->DataOffset,
                               TextureSize, Data);
-                              
-    AddOpenglTextureToQueue(Queue, Assets,
+
+    AddOpenglTextureToQueue(Queue,
+                            Assets,
                             ID, Data,
                             TextureInfo->Width,
                             TextureInfo->Height,
                             ImageFormat,
-                            TextureInfo->Tags);
+                            TextureInfo->Tags);   
+}
+
+internal void
+LoadTexture(assets *Assets,
+            open_gl *OpenGL,
+            asset_id ID, zas_asset_info *AssetInfo)
+{
+#if 1
+    zas_texture_info *TextureInfo = &AssetInfo->Texture;
+    Assert(TextureInfo->Channels == 4 || TextureInfo->Channels == 3);    
+    int ImageFormat = (TextureInfo->Channels == 4) ? GL_RGBA : GL_RGB;
+    
+    u32 TextureSize = TextureInfo->Channels * TextureInfo->Width * TextureInfo->Height;
+    //IMPORTANT memory leak
+    void *Data = AllocateSize(&Assets->Arena, TextureSize);
+    
+    Platform.ReadDataFromFile(Assets->FileHandle,
+                              AssetInfo->DataOffset,
+                              TextureSize, Data);
+   loaded_texture Texture =
+        LoadOpenglTexture(OpenGL, TextureInfo->Width,
+                          TextureInfo->Height,
+                          ImageFormat, Data,
+                          TextureInfo->Tags);
+    
+    UploadTexture(Assets, Texture, ID);
+    #endif
+
 }
 
 inline void
@@ -144,17 +225,6 @@ LoadAudio(assets *Assets,
     UploadAudio(Assets, Audio, ID);
 }
 
-inline void
-UploadTexture(assets *Assets, loaded_texture Texture,
-              asset_id ID)
-{
-    asset *Asset = GetAsset(Assets, ID);
-    Asset->Texture = Texture;
-    
-    CompletePreviousWritesBeforeFutureWrites;
-    Asset->State = AssetState_Loaded;
-}
-
 internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
 {
     load_asset_work *Work = (load_asset_work *)Data;
@@ -165,7 +235,8 @@ internal PLATFORM_WORK_QUEUE_CALLBACK(LoadAssetWork)
     {
         case AssetFamily_Texture:
         {
-            LoadTexture(Work->Queue, Work->Assets,
+            LoadTextureDeferred(Work->Queue,
+                        Work->Assets,
                         Work->ID,
                         Info);
             break;
@@ -207,7 +278,8 @@ PrefetchAsset(assets *Assets, app_state *AppState, asset_id ID)
 }
 
 internal void
-LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
+LoadAsset(assets *Assets, open_gl *OpenGL,
+          app_state *AppState, asset_id ID)
 {
     zas_asset_info *Info = GetAssetInfo(Assets, ID);
         
@@ -215,7 +287,7 @@ LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
     {
         case AssetFamily_Texture:
         {
-            PrefetchAsset(Assets, AppState, ID);
+            LoadTexture(Assets, OpenGL, ID, Info);
             break;
         }
         case AssetFamily_Audio:
@@ -231,11 +303,12 @@ LoadAsset(assets *Assets, app_state *AppState, asset_id ID)
 }
 
 inline loaded_texture *
-GetTexture(assets *Assets, app_state *AppState, asset_id ID)
+GetTexture(assets *Assets, open_gl *OpenGL,
+           app_state *AppState, asset_id ID)
 {
     loaded_texture *Result = 0;
-    
     asset *Asset = GetAsset(Assets, ID);
+    
     
     if (Asset->State == AssetState_Loaded)
     {
@@ -243,9 +316,9 @@ GetTexture(assets *Assets, app_state *AppState, asset_id ID)
     }
     else if (Asset->State == AssetState_Unloaded)
     {
-        LoadAsset(Assets, AppState, ID);
+        LoadAsset(Assets, OpenGL, AppState, ID);
     }
-
+    
     return Result;
 }
 inline loaded_audio *
@@ -253,10 +326,11 @@ GetAudio(assets *Assets, app_state *AppState, asset_id ID)
 {
     loaded_audio *Result = 0;
     asset *Asset = GetAsset(Assets, ID);
+    zas_asset_info *Info = GetAssetInfo(Assets, ID);
 
     if (Asset->State == AssetState_Unloaded)
     {
-        LoadAsset(Assets, AppState, ID);
+        LoadAudio(Assets, ID, Info);
     }
     
     if (Asset->State == AssetState_Loaded)
@@ -271,33 +345,10 @@ internal void
 LoadOpenglTextureFromEntry(open_gl *OpenGL,
                            opengl_texture_queue_entry *Entry)
 {
-    loaded_texture Texture;
-    Texture.Width = Entry->Width;
-    Texture.Height = Entry->Height;
-    
-    glGenTextures(1, &Texture.ID);
-    glBindTexture(GL_TEXTURE_2D, Texture.ID);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, Entry->ImageFormat,
-                 Entry->Width, Entry->Height, 0,
-                 Entry->ImageFormat, GL_UNSIGNED_BYTE, Entry->TextureMemory);
-
-//    DEBUGPlatformFreeFileMemory(Entry->MemoryToFree);
-    //Set some texture parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    if ((Entry->Flags & TEXTURE_SOFT_FILTER) == TEXTURE_SOFT_FILTER) {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    }
-    else {
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    }
-
-    OpenGL->glGenerateMipmap(GL_TEXTURE_2D);
-
+    loaded_texture Texture =
+        LoadOpenglTexture(OpenGL, Entry->Width, Entry->Height,
+                          Entry->ImageFormat, Entry->TextureMemory,
+                          Entry->Flags);
     UploadTexture(Entry->Assets, Texture, Entry->ID);
 }
 
@@ -317,7 +368,7 @@ LoadOpenglTexturesFromQueue(open_gl *OpenGL, opengl_texture_queue *Queue)
 }
 
 internal void
-InitializeAssets(assets *Assets, app_state *AppState,
+InitializeAssets(assets *Assets, open_gl *OpenGL, app_state *AppState,
                  memory_arena *MemoryArena)
 {
     memory_arena *AssetArena = &Assets->Arena;
@@ -336,7 +387,6 @@ InitializeAssets(assets *Assets, app_state *AppState,
                 Platform.OpenNextFile(FileGroup);
 
             Assets->FileHandle = FileHandle;
-            
             zas_header ZASHeader;
             Platform.ReadDataFromFile(FileHandle, 0, sizeof(zas_header), &ZASHeader);
             Assert(ZASHeader.MagicValue == ZAS_MAGIC_VALUE);
@@ -352,8 +402,9 @@ InitializeAssets(assets *Assets, app_state *AppState,
             Platform.ReadDataFromFile(FileHandle, AssetTypesOffset,
                                       AssetType_Count * sizeof(zas_asset_type_slot),
                                       FileAssetTypes);
+            
             Assets->AssetTypes = FileAssetTypes;
-        
+            
             zas_asset_info *FileAssetInfos =
                 AllocateArray(AssetArena, AssetCount + 1, zas_asset_info);
             Platform.ReadDataFromFile(FileHandle, AssetsInfosOffset,
@@ -366,51 +417,21 @@ InitializeAssets(assets *Assets, app_state *AppState,
             Assets->AssetCount = AssetCount;
         }
     }
-
     Platform.GetAllFilesOfTypeEnd(FileGroup);
 
-    #if 0
+    #if 1
     for(u32 AssetTypeIndex = 1;
         AssetTypeIndex < AssetType_Count;
         AssetTypeIndex++)
     {
-        PrefetchAsset(Assets, AppState, {(asset_type_id)AssetTypeIndex});
+        if (AssetTypeIndex != AssetType_BattleTheme)
+        {
+            LoadAsset(Assets, OpenGL, AppState, {(asset_type_id)AssetTypeIndex});
+        }
     }
     #endif
 
             
 
-#if 0        
-    u8 *AssetFileMemory = (u8 *)AssetFileResult.Memory;
-    Assets->ZASBase = AssetFileMemory;
-    if (AssetFileResult.Size > 0)
-    {
-        zas_header *ZASHeader = (zas_header *)AssetFileMemory;        
-        Assert(ZASHeader->MagicValue == ZAS_MAGIC_VALUE);
-        Assert(ZASHeader->Version == ZAS_VERSION);
-
-        zas_asset_type_slot *FileAssetTypes =
-            (zas_asset_type_slot *)(AssetFileMemory +
-                                    sizeof(zas_header));
-
-        Assets->AssetTypes = FileAssetTypes;
-        zas_asset_info *FileAssetInfos =
-            (zas_asset_info *)(AssetFileMemory +
-                               ZASHeader->AssetsInfosOffset);
-        Assets->AssetCount = ZASHeader->AssetCount;
-
-        Assets->Assets =
-            AllocateArray(AssetArena, Assets->AssetCount, asset);
-
-        Assets->Infos = FileAssetInfos;        
-    }
-
-    for(u32 AssetTypeIndex = 1;
-        AssetTypeIndex < AssetType_Count;
-        AssetTypeIndex++)
-    {
-        LoadAsset(Assets, AppState, {(asset_type_id)AssetTypeIndex});
-    }
-    #endif
 }
 

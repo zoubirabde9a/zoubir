@@ -9,7 +9,8 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 internal font *
-CreateFont(memory_arena *Arena,
+CreateFont(open_gl *OpenGL,
+           memory_arena *Arena,
               float FontSize,
               int BitmapWidth, int BitmapHeight,
               char *FilePath)
@@ -60,12 +61,12 @@ CreateFont(memory_arena *Arena,
     Font->LowerLimit = MaxY;
     
     Platform.FreeFileMemory(ReadResult.Memory);
-    glGenTextures(1, &Font->Texture);
-    glBindTexture(GL_TEXTURE_2D, Font->Texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, Font->BitmapWidth,
+    OpenGL->glGenTextures(1, &Font->Texture);
+    OpenGL->glBindTexture(GL_TEXTURE_2D, Font->Texture);
+    OpenGL->glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, Font->BitmapWidth,
                  Font->BitmapHeight, 0, GL_ALPHA, GL_UNSIGNED_BYTE,
                  BitmapMemory);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    OpenGL->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     EndTemporaryMemory(TemporaryMemory);
     
     return Font;
@@ -132,12 +133,14 @@ RenderProgramUse(render_context *RenderContext,
         {
             OpenGL->glEnableVertexAttribArray(AttribIndex);
         }
+        
         i32 MatrixLocation = OpenGL->glGetUniformLocation(Program->ID, "P");
         OpenGL->glUniformMatrix4fv(MatrixLocation, 1, GL_FALSE, Program->ProjectionMatrix->Data);
         
         RenderContext->AProgramIsUsed = true;
         RenderContext->LastUsedProgramID = Program->ID;
     }
+        
 }
 
 inline void
@@ -368,9 +371,9 @@ RenderFlush(render_context *RenderContext)
             OpenGL->glBindBuffer(GL_ARRAY_BUFFER, 0);
     
             OpenGL->glBindVertexArray(RenderContext->VAO);
-            glBindTexture(GL_TEXTURE_2D, RenderContext->Texture);
+            OpenGL->glBindTexture(GL_TEXTURE_2D, RenderContext->Texture);
     
-            glDrawArrays(GL_TRIANGLES, 0, (GLsizei)RenderContext->VertexCount);
+            OpenGL->glDrawArrays(GL_TRIANGLES, 0, (GLsizei)RenderContext->VertexCount);
             break;
         }
         case RENDERER_TYPE_BATCH:
@@ -414,83 +417,17 @@ RenderFlush(render_context *RenderContext)
                 {
                     case RENDER_BATCH_TYPE_TEXTURE:
                     {
-                        glBindTexture(GL_TEXTURE_2D, CurrentBatch->TextureID);
-                        glDrawArrays(GL_TRIANGLES, 0, (GLsizei)CurrentBatch->VertexCount);
+                        OpenGL->glBindTexture(GL_TEXTURE_2D, CurrentBatch->TextureID);
+                        OpenGL->glDrawArrays(GL_TRIANGLES, 0, (GLsizei)CurrentBatch->VertexCount);
                         break;
                     }
                     case RENDER_BATCH_TYPE_RECTANGLE:
                     {
-                        glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)CurrentBatch->VertexCount);
+                        OpenGL->glDrawArrays(GL_LINE_LOOP, 0, (GLsizei)CurrentBatch->VertexCount);
                         break;
                     }
                 }
-            }
-            
-#endif
-#if 0
-            // Creating Render Batches
-            u32 LastTextureID = Batches[0].TextureID;
-            u32 LastProgramID = Batches[0].ProgramID;
-            u32 NewBatchCurrentIndex = 0;
-            render_vertex *NewBatchVerticies = OutVerticies;
-            u32 CurrentBatchVertexCount = 0;
-            for(u32 CurrentBatchIndex = 0;
-                CurrentBatchIndex < RenderContext->BatchCount;
-                CurrentBatchIndex++)
-            {
-                render_batch *ThisBatch = &Batches[CurrentBatchIndex];
-                memcpy(OutVerticies, ThisBatch->Verticies,
-                       ThisBatch->VertexCount * sizeof(render_vertex));
-                OutVerticies += ThisBatch->VertexCount;
-                CurrentBatchVertexCount += ThisBatch->VertexCount;
-                if (ThisBatch->TextureID != LastTextureID ||
-                    ThisBatch->ProgramID != LastProgramID)
-                {
-                    render_batch *NewBatch = &Batches[NewBatchCurrentIndex];
-                    NewBatch->TextureID = ThisBatch->TextureID;
-                    NewBatch->ProgramID = ThisBatch->ProgramID;
-                    NewBatch->Verticies = NewBatchVerticies;
-                    NewBatch->VertexCount = CurrentBatchVertexCount;
-                    NewBatchCurrentIndex++;
-                    NewBatchVerticies = OutVerticies;
-                    CurrentBatchVertexCount = 0;
-                    LastTextureID = NewBatch->TextureID;
-                    LastProgramID = NewBatch->ProgramID;
-                }
-            }
-            RenderContext->VertexCount = NewBatchCurrentIndex;
-            LastTextureID = Batches[0].TextureID;
-            LastProgramID = Batches[0].ProgramID;            
-            glBindTexture(GL_TEXTURE_2D, Batches[0].TextureID);
-            for(u32 CurrentRenderBatchIndex = 0;
-                CurrentRenderBatchIndex < RenderContext->BatchCount;
-                CurrentRenderBatchIndex++)
-            {
-                render_batch *ThisRenderBatch =
-                    &Batches[CurrentRenderBatchIndex];
-                VerticiesToRender = ThisRenderBatch->Verticies;
-                size_t VerticesMemoryBlockSize =
-                    ThisRenderBatch->VertexCount * sizeof(render_vertex);
-                OpenGL->glBindBuffer(GL_ARRAY_BUFFER, RenderContext->VBO);
-                OpenGL->glBufferData(GL_ARRAY_BUFFER, VerticesMemoryBlockSize, 0, GL_DYNAMIC_DRAW);
-                OpenGL->glBufferSubData(GL_ARRAY_BUFFER, 0, VerticesMemoryBlockSize, VerticiesToRender);
-                OpenGL->glBindBuffer(GL_ARRAY_BUFFER, 0);
-    
-                OpenGL->glBindVertexArray(RenderContext->VAO);
-                if (LastTextureID != ThisRenderBatch->TextureID)
-                {
-                    glBindTexture(GL_TEXTURE_2D, ThisRenderBatch->TextureID);
-                }
-                if (LastProgramID != ThisRenderBatch->ProgramID)
-                {
-                    // TODO(zoubir): glUseProgram() and also
-                    // fill ProgramID In render_batch
-                }
-                glDrawArrays(GL_TRIANGLES, 0, (GLsizei)ThisRenderBatch->VertexCount);
-                LastTextureID = ThisRenderBatch->TextureID;
-                LastProgramID = ThisRenderBatch->ProgramID;            
-            }
-            break;
+            }            
 #endif
         }
     };

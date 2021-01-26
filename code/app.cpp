@@ -4,6 +4,8 @@
    $Revision: $
    $Creator: zoubir $
    ======================================================================== */
+
+
 #include "app.h"
 #include "stdio.h"
 #include "string.h"
@@ -21,6 +23,22 @@
 
 #include "app_ui.h"
 
+
+
+render_vertex VertexC(float X, float Y, float Z,
+                      float U, float V)
+ {
+     
+     render_vertex Result;
+     Result.X = X;
+     Result.Y = Y;
+     Result.Z = Z;
+     Result.Color = RGBA8_WHITE;
+     Result.U = U;
+     Result.V = V;
+     
+     return Result;
+ }
 
 
 #if 0
@@ -1268,6 +1286,7 @@ DrawTileEntity(render_context *RenderContext,
                world *World,
                world_entity *Entity, v3 CameraOffset)
 {
+    open_gl *OpenGL = AppState->OpenGL;
     v2 TextureOrigin = V2(0.5f, 0.67f);
         
     v2 EntityCameraPosition = Entity->Position.XY - CameraOffset.XY;
@@ -1280,7 +1299,7 @@ DrawTileEntity(render_context *RenderContext,
     
     float SortingValue =
         Entity->Position.Y - Entity->Collision->TotalVolume.HalfDims.Y;
-    loaded_texture *Texture = GetTexture(Assets, AppState, Entity->Texture);
+    loaded_texture *Texture = GetTexture(Assets, OpenGL, AppState, Entity->Texture);
     if (Texture)
     {        
         ColorRGBA8 Color;
@@ -1360,6 +1379,7 @@ DrawEntity(render_context *RenderContext,
            assets *Assets,
            world_entity *Entity, v3 CameraOffset)
 {
+    open_gl *OpenGL = AppState->OpenGL;
     loaded_texture *Texture = 0;
     zas_texture_info *TextureInfo = 0;
     v2 EntityCameraPosition = Entity->Position.XY - CameraOffset.XY;
@@ -1371,7 +1391,7 @@ DrawEntity(render_context *RenderContext,
     if (Entity->Texture.Type)
     {
         TextureInfo = &GetAssetInfo(Assets, Entity->Texture)->Texture;
-        Texture = GetTexture(Assets, AppState, Entity->Texture);
+        Texture = GetTexture(Assets, OpenGL, AppState, Entity->Texture);
         v2 EntityTexturePosition = EntityCameraPosition -
             TextureInfo->Origin * Entity->Dimensions;
         EntityTexturePosition.Y -= Entity->Position.Z;
@@ -1468,7 +1488,7 @@ DrawEntity(render_context *RenderContext,
     zas_texture_info *ShadowTextureInfo = 0;
     if (Entity->ShadowTexture.Type)
     {
-        ShadowTexture = GetTexture(Assets, AppState, Entity->ShadowTexture);
+        ShadowTexture = GetTexture(Assets, OpenGL, AppState, Entity->ShadowTexture);
         ShadowTextureInfo = &GetAssetInfo(Assets, Entity->ShadowTexture)->Texture;
         
         v2 ShadowDims = {28, 14};
@@ -1519,7 +1539,9 @@ DoEntityAnimation(world_entity *Entity, assets *Assets, app_state *AppState,
                   float DeltaTime, float AnimationSpeedRate,
                   animation_type AnimationType, animation_direction AnimationDirection)
 {
-    loaded_texture *Texture = GetTexture(Assets, AppState, Entity->Texture);
+    open_gl *OpenGL = AppState->OpenGL;
+    loaded_texture *Texture = GetTexture(Assets, OpenGL,
+                                         AppState, Entity->Texture);
     zas_texture_info *TextureInfo = &GetAssetInfo(Assets, Entity->Texture)->Texture;
     if (Texture)
     {
@@ -1550,10 +1572,17 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     
     assets *Assets = &AppState->Assets;
     audio_state *AudioState = &AppState->AudioState;
+    render_context *RenderContext = &Thread->RenderContext;
+    open_gl *OpenGL = RenderContext->OpenGL;
+
+    static u32 VAO = 0;
+    static u32 VBO = 0;
+    static loaded_texture TextureL = {};
     
     if (!AppState->IsInitialized)
     {
         Platform = Memory->PlatformApi;
+        AppState->OpenGL = RenderContext->OpenGL;
         
         InitializeArena(MemoryArena,
                         (memory_index *)(AppState + 1),
@@ -1563,20 +1592,32 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
                         (memory_index *)(TransientState + 1),
                         Memory->TransientStorageSize - sizeof(transient_state));
         SubArena(ConstantsArena, MemoryArena, Kilobytes(64));
-
-        InitializeAudio(AudioState);        
-        
         AppState->WorkQueue = Memory->WorkQueue;
-        
-        temporary_memory TempMem = BeginTemporaryMemory(TransientArena);
+        InitializeAudio(AudioState);        
         AppInitOpenGL(TransientArena, AppState, Thread, Memory);
-
+        VAO = RenderContext->VAO;
+        VBO = RenderContext->VBO;
+#if 1
+        u8 *C = (u8 *)malloc(1024 * 1024 * 4);
+        for(u32 Index = 0;
+            Index < 1024 * 1024 * 4;
+            Index++)
+        {
+            C[Index] = 255;
+        }
+        TextureL = LoadOpenglTexture(OpenGL, 2 << 6, (2 << 6) + 1, GL_RGBA,
+                          C, TEXTURE_SOFT_FILTER);        
+        free(C);
+        
+#endif
+        InitializeAssets(Assets, OpenGL, AppState, MemoryArena);
+                               
+        temporary_memory TempMem = BeginTemporaryMemory(TransientArena);
         // Texture Loading        
         AppState->TextureCache = TextureCacheCreate(MemoryArena, 8, 20 * 8);
-        InitializeAssets(Assets, AppState, MemoryArena);
-        
+
         AppState->DefaultFont =
-            CreateFont(MemoryArena,
+            CreateFont(OpenGL, MemoryArena,
                        24.f, 512, 512,
                        "c:/windows/fonts/times.ttf");
 
@@ -1600,7 +1641,7 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
             TileWidth / CollisionWidth;
         u32 const CollisionToTilesY =
             TileHeight / CollisionHeight;
-
+    
         AppState->TileObjectCollision =
             MakeSimpleGroundedCollisionVolume(ConstantsArena, {96.f*0.5f, 76.f*0.5f, 24.f});
         AppState->TreeCollision =
@@ -2008,16 +2049,14 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 
         SetCollision(AppState, EntityType_Sword,
                      EntityType_Monster, true);
-
         EndTemporaryMemory(TempMem);
         AppState->IsInitialized = true;
+        
     }
-
-    render_context *RenderContext = &Thread->RenderContext;
-    open_gl *OpenGL = RenderContext->OpenGL;
+    
     render_program *TextureProgram = &RenderContext->TextureProgram;
     render_program *LineProgram = &RenderContext->LineProgram;
-    
+
     LoadOpenglTexturesFromQueue(OpenGL, &AppState->OpenglTextureQueue);
     
     ui_context *UIContext = AppState->UIContext;
@@ -2026,7 +2065,10 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         BeginTemporaryMemory(TransientArena);
     
     texture_cache *TextureCache = AppState->TextureCache;
-    loaded_texture *ZoubirTexture = GetTexture(Assets, AppState, {AssetType_Zoubir});
+
+//    loaded_texture *ZoubirTexture = GetTexture(Assets, OpenGL,
+//                                               AppState, {AssetType_Zoubir});
+    
     font *DefaultFont = AppState->DefaultFont;
 
     float Right = (float)Window->Width;
@@ -2055,9 +2097,11 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     }
 //    glViewport(0, 0, Window->Width, Window->Height);
     
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
     
+    OpenGL->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    OpenGL->glClearColor(1.0f, 0.5f, 0.5f, 1.0f);
+
+
 #if 1
     world *World = &AppState->World;
     tile_map *TileMap = &World->TileMap;
@@ -2124,7 +2168,8 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
     SetupBatchRenderer(RenderContext, TransientArena, BatchesCount);
     RenderBegin(RenderContext, VerticesCount, RENDER_ORDER_BACK_TO_FRONT);
     
-    loaded_texture *TileMapTexture = GetTexture(Assets, AppState, TileMap->Texture);
+    loaded_texture *TileMapTexture = GetTexture(Assets, OpenGL,
+                                                AppState, TileMap->Texture);
     // Drawing Tile Map
 #if 1
     if (TileMapTexture)
@@ -2361,7 +2406,8 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
         ui_state *TilePickerWidget = &AppState->TilePickerWidget;
         DoTilePickerWidget(&AppState->TilePickerWidget, AppState,
                            UIContext, 0.f, 0.f, 200.f, 200.f,
-                           GetTexture(Assets, AppState, {AssetType_TileMap}), 32, 32,
+                           GetTexture(Assets, OpenGL,
+                                      AppState, {AssetType_TileMap}), 32, 32,
                            8, 200);
         float MouseXF = (float)Input->MouseX;
         float MouseYF = (float)Input->MouseY;
@@ -2499,6 +2545,7 @@ extern "C" APP_UPDATE_AND_RENDER(AppUpdateAndRender)
 #endif
     #endif
     EndTemporaryMemory(FrameTemporaryMemory);
+
 }
 
 extern "C" APP_GET_SOUND_SAMPLES(AppGetSoundSamples)

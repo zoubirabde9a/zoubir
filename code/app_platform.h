@@ -24,6 +24,10 @@
 #define COMPILER_GCC 0
 #endif
 
+#if !defined(__EMSCRIPTEN__)
+#define COMPILER_EMSCRIPTEN 0
+#endif
+
 #if !COMPILLER_MSVC && !COMPILLER_LLVM && !COMPILER_GCC
 #if _MSC_VER
 #undef COMPILER_MSVC
@@ -31,6 +35,9 @@
 #elif __GNUC__
 #undef COMPILER_GCC
 #define COMPILER_GCC 0
+#elif __EMSCRIPTEN__
+#undef COMPILER_EMSCRIPTEN
+#define COMPILER_EMSCRIPTEN
 #else
 #undef COMPILER_LLVM
 #define COMPILER_LLVM 0
@@ -52,6 +59,7 @@
 
 //#include "GL/glew.h"
 #include "app_defs.h"
+
 #include "opengl.h"
 
 #include "math.h"

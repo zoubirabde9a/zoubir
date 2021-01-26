@@ -190,6 +190,7 @@ inline void *
 Win32AllocateSize(u32 Size)
 {
      void *Result = VirtualAlloc(0, Size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+//     ZeroSize(Result, Size);
      return Result;
 }
 
@@ -1069,7 +1070,7 @@ Win32InitOpenGL(open_gl *OpenGL, HWND Window, HDC WindowDC)
     ReleaseDC(Window, WindowDC);
 #endif
     
-    const GLubyte *version = glGetString(GL_VERSION);
+//    const GLubyte *version = glGetString(GL_VERSION);
     
 //    GLenum error = glewInit();
 //    Assert(error == GLEW_OK);
